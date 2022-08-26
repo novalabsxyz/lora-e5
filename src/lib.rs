@@ -210,7 +210,9 @@ impl LoraE5 {
     }
 }
 
-/// These tests all require a physical LoRa E5
+/// These tests all require a physical LoRa E5.
+/// Run them one at a time to avoid port collisions:
+///   ie: cargo test --  --nocapture --test-threads 1
 #[cfg(test)]
 mod tests {
     const VID: u16 = 4292;

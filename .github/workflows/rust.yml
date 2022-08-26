@@ -1,0 +1,44 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build-linux:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          default: true
+          override: true
+          components: clippy, rustfmt
+
+      - name: Install Dependencies
+        run: |
+          export DEBIAN_FRONTEND=noninteractive
+          sudo apt-get clean && sudo apt-get update
+          sudo apt-get install -y pkg-config ninja-build libasound2-dev libgl1-mesa-dev libx11-dev libudev-dev
+
+      - name: Cancel previous runs
+        uses: styfle/cancel-workflow-action@0.5.0
+        with:
+          access_token: ${{ github.token }}
+
+      - name: Check formatting
+        run: cargo fmt  -- --check
+
+      - name: Clippy
+        uses: actions-rs/clippy-check@v1
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          args: -- -Dclippy::all
+
+      - name: Build
+        run: cargo build --all
+

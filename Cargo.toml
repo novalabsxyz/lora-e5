@@ -1,0 +1,9 @@
+[package]
+name = "lora-e5"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+serialport = "4"
+thiserror = "1"
+hex = "0"

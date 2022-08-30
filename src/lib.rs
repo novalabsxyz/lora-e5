@@ -114,13 +114,11 @@ impl<const N: usize> LoraE5<N> {
         let cmd = format!("AT+PORT={port}");
         self.write_command(&cmd)?;
         let n = self.read_until_break(DEFAULT_TIMEOUT)?;
-        // //println!("{}", std::str::from_utf8(&self.buf[..n]).unwrap());
-        // Ok(())
         self.check_framed_response(n, EXPECTED_PRELUDE, &port.to_string())
     }
 
     pub fn send(&mut self, data: &[u8], port: u8, confirmed: bool) -> Result {
-        //self.set_port(port)?;
+        self.set_port(port)?;
         let end_line = "+MSGHEX: Done\r\n";
         let hex = hex::encode(&data);
         let cmd = format!(
@@ -128,8 +126,8 @@ impl<const N: usize> LoraE5<N> {
             if confirmed { "MSGHEX" } else { "CMSGHEX" }
         );
         self.write_command(&cmd)?;
-        let n = self.read_until_pattern(end_line, Duration::from_secs(3))?;
-        println!("{}", std::str::from_utf8(&self.buf[..n]).unwrap());
+        let _n = self.read_until_pattern(end_line, Duration::from_secs(3))?;
+        //todo: check confirmed uplinks are confirmed
         Ok(())
     }
 }
@@ -261,10 +259,7 @@ mod tests {
         lora_e5.set_credentials(&credentials).unwrap();
         lora_e5.subband2_only().unwrap();
         lora_e5.join().unwrap();
-        std::thread::sleep(Duration::from_millis(150));
-        lora_e5.flush().unwrap();
         lora_e5.set_port(4).unwrap();
         lora_e5.send(&[1, 2, 3, 4], 3, true).unwrap();
-        std::thread::sleep(Duration::from_millis(50));
     }
 }

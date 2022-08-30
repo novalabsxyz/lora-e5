@@ -1,20 +1,6 @@
 use super::*;
 
 impl<const N: usize> LoraE5<N> {
-    pub(crate) fn flush(&mut self) -> Result{
-        let mut cursor = 0;
-        if let Ok(n) = self.port.read(&mut self.buf[cursor..]) {
-            if cursor ==0 && n==0 {
-                print!("flushing: ");
-            }
-            if n != 0 {
-                print!("{}", std::str::from_utf8(&self.buf[cursor..cursor+n]).unwrap());
-                cursor += n;
-            }
-        }
-        Ok(())
-    }
-
     pub(crate) fn read_until_break(&mut self, timeout: Duration) -> Result<usize> {
         self.read_until_pattern("\n", timeout)
     }
@@ -25,7 +11,6 @@ impl<const N: usize> LoraE5<N> {
         loop {
             if let Ok(n) = self.port.read(&mut self.buf[cursor..]) {
                 if n != 0 {
-                    print!("{}", std::str::from_utf8(&self.buf[cursor..cursor+n]).unwrap());
                     cursor += n;
                     time = time::Instant::now();
                 }

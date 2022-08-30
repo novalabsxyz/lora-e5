@@ -279,11 +279,11 @@ impl<const N: usize> LoraE5<N> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     fn lora_test_hardware() -> LoraE5<64_usize> {
-        const VID: u16 = 4292;
-        const PID: u16 = 60000;
-        LoraE5::<64>::open_usb(VID, PID).unwrap()
+        const SILICON_LABS_VID: u16 = 0x10C4;
+        const CP210x_UART_Bridge_PID: u16 = 0xEA60;
+        LoraE5::<64>::open_usb(SILICON_LABS_VID, CP210x_UART_Bridge_PID).unwrap()
     }
 
     #[test]

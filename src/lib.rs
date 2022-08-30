@@ -119,11 +119,7 @@ impl LoraE5 {
         }
     }
 
-    fn read_until_close(
-        &mut self,
-        buf: &mut [u8],
-        timeout: Duration,
-    ) -> Result<usize> {
+    fn read_until_close(&mut self, buf: &mut [u8], timeout: Duration) -> Result<usize> {
         let mut bytes_read = 0;
         let mut time = time::Instant::now();
         loop {

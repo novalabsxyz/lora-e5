@@ -72,9 +72,8 @@ impl<const N: usize> LoraE5<N> {
     pub fn set_channel(&mut self, ch: u8, enable: bool) -> Result {
         let cmd = format!("AT+CH={ch},{}", if enable { "on" } else { "off" });
         self.write_command(&cmd)?;
-        let mut buf: Vec<u8> = vec![0; 64];
         let n = self.read_until_break(DEFAULT_TIMEOUT)?;
-        let response = std::str::from_utf8(&buf[..n])?;
+        let response = std::str::from_utf8(&self.buf[..n])?;
         if response.starts_with(&format!("+CH: CH{ch} off")) {
             Ok(())
         } else {
@@ -94,25 +93,25 @@ impl<const N: usize> LoraE5<N> {
 
     fn read_until_break(&mut self, timeout: Duration) -> Result<usize> {
         let mut start = 0;
-        let mut bytes_read = 0;
+        let mut cursor = 0;
         let mut time = time::Instant::now();
         loop {
-            if let Ok(n) = self.port.read(&mut self.buf[bytes_read..]) {
+            if let Ok(n) = self.port.read(&mut self.buf[cursor..]) {
                 if n != 0 {
-                    start = bytes_read;
-                    bytes_read += n;
+                    start = cursor;
+                    cursor += n;
                     time = time::Instant::now();
                 } else {
-                    return Ok(bytes_read);
+                    return Ok(cursor);
                 }
             }
-            for byte in &self.buf[start..bytes_read] {
+            for byte in &self.buf[start..cursor] {
                 if *byte == b'\n' {
-                    return Ok(bytes_read);
+                    return Ok(cursor);
                 }
             }
             if time.elapsed() > timeout {
-                let partial_response = std::str::from_utf8(&self.buf[..bytes_read])?;
+                let partial_response = std::str::from_utf8(&self.buf[..cursor])?;
                 return Err(Error::PartialResponse(partial_response.to_string()));
             }
         }
@@ -127,7 +126,6 @@ impl<const N: usize> LoraE5<N> {
                     bytes_read += n;
                     time = time::Instant::now();
                 } else {
-                    println!("{}", std::str::from_utf8(&self.buf[..bytes_read]).unwrap());
                     return Ok(bytes_read);
                 }
             }
@@ -141,9 +139,8 @@ impl<const N: usize> LoraE5<N> {
     pub fn get_dev_eui(&mut self) -> Result<DevEui> {
         const EXPECTED_PRELUDE: &str = "+ID: DevEui, ";
         self.write_command("AT+ID=DevEui")?;
-        let mut buf: Vec<u8> = vec![0; 64];
         let n = self.read_until_break(DEFAULT_TIMEOUT)?;
-        let response = std::str::from_utf8(&buf[..n])?;
+        let response = std::str::from_utf8(&self.buf[..n])?;
         let (prelude, dev_eui) = response.split_at(EXPECTED_PRELUDE.len());
         if prelude == EXPECTED_PRELUDE {
             Ok(DevEui::from_str(dev_eui.trim_end())?)
@@ -155,9 +152,8 @@ impl<const N: usize> LoraE5<N> {
     pub fn get_app_eui(&mut self) -> Result<AppEui> {
         const EXPECTED_PRELUDE: &str = "+ID: AppEui, ";
         self.write_command("AT+ID=AppEui")?;
-        let mut buf: Vec<u8> = vec![0; 64];
         let n = self.read_until_break(DEFAULT_TIMEOUT)?;
-        let response = std::str::from_utf8(&buf[..n])?;
+        let response = std::str::from_utf8(&self.buf[..n])?;
         let (prelude, app_eui) = response.split_at(EXPECTED_PRELUDE.len());
         if prelude == EXPECTED_PRELUDE {
             Ok(AppEui::from_str(app_eui.trim_end())?)
@@ -170,9 +166,8 @@ impl<const N: usize> LoraE5<N> {
         const EXPECTED_PRELUDE: &str = "+ID: AppEui, ";
         let cmd = format!("AT+ID=AppEui, {app_eui}");
         self.write_command(&cmd)?;
-        let mut buf: Vec<u8> = vec![0; 64];
         let n = self.read_until_break(DEFAULT_TIMEOUT)?;
-        let response = std::str::from_utf8(&buf[..n])?;
+        let response = std::str::from_utf8(&self.buf[..n])?;
         let (prelude, app_eui_str) = response.split_at(EXPECTED_PRELUDE.len());
         if prelude == EXPECTED_PRELUDE {
             let app_eui_response = AppEui::from_str(app_eui_str.trim_end())?;
@@ -190,9 +185,8 @@ impl<const N: usize> LoraE5<N> {
         const EXPECTED_PRELUDE: &str = "+ID: DevEui, ";
         let cmd = format!("AT+ID=DevEui, {dev_eui}");
         self.write_command(&cmd)?;
-        let mut buf: Vec<u8> = vec![0; 64];
         let n = self.read_until_break(DEFAULT_TIMEOUT)?;
-        let response = std::str::from_utf8(&buf[..n])?;
+        let response = std::str::from_utf8(&self.buf[..n])?;
         let (prelude, dev_eui_str) = response.split_at(EXPECTED_PRELUDE.len());
         if prelude == EXPECTED_PRELUDE {
             let dev_eui_response = DevEui::from_str(dev_eui_str.trim_end())?;
@@ -210,9 +204,8 @@ impl<const N: usize> LoraE5<N> {
         const EXPECTED_PRELUDE: &str = "+KEY: APPKEY ";
         let cmd = format!("AT+KEY=APPKEY, {app_key}");
         self.write_command(&cmd)?;
-        let mut buf: Vec<u8> = vec![0; 64];
         let n = self.read_until_break(DEFAULT_TIMEOUT)?;
-        let response = std::str::from_utf8(&buf[..n])?;
+        let response = std::str::from_utf8(&self.buf[..n])?;
         let (prelude, app_key_str) = response.split_at(EXPECTED_PRELUDE.len());
         if prelude == EXPECTED_PRELUDE {
             let app_key_response = AppKey::from_str(app_key_str.trim_end())?;
@@ -236,9 +229,8 @@ impl<const N: usize> LoraE5<N> {
         const EXPECTED_PRELUDE: &str = "+DR: ";
         let cmd = format!("AT+DR={}", region.as_str());
         self.write_command(&cmd)?;
-        let mut buf: Vec<u8> = vec![0; 64];
         let n = self.read_until_break(DEFAULT_TIMEOUT)?;
-        let response = std::str::from_utf8(&buf[..n])?;
+        let response = std::str::from_utf8(&self.buf[..n])?;
         let (prelude, region_response) = response.split_at(EXPECTED_PRELUDE.len());
         if prelude == EXPECTED_PRELUDE {
             if region_response.trim_end() == region.as_str() {
@@ -255,9 +247,8 @@ impl<const N: usize> LoraE5<N> {
         const EXPECTED_PRELUDE: &str = "+MODE: ";
         let cmd = format!("AT+MODE={}", mode.as_str());
         self.write_command(&cmd)?;
-        let mut buf: Vec<u8> = vec![0; 64];
         let n = self.read_until_break(DEFAULT_TIMEOUT)?;
-        let response = std::str::from_utf8(&buf[..n])?;
+        let response = std::str::from_utf8(&self.buf[..n])?;
         let (prelude, mode_response) = response.split_at(EXPECTED_PRELUDE.len());
         if prelude == EXPECTED_PRELUDE {
             if mode_response.trim_end() == mode.as_str() {
@@ -272,9 +263,8 @@ impl<const N: usize> LoraE5<N> {
 
     pub fn join(&mut self) -> Result<bool> {
         self.write_command("AT+JOIN=FORCE")?;
-        let mut buf: Vec<u8> = vec![0; 64];
         let n = self.read_until_close(Duration::from_secs(10))?;
-        let response = std::str::from_utf8(&buf[..n])?;
+        let response = std::str::from_utf8(&self.buf[..n])?;
         if response.contains("Network Joined") {
             Ok(true)
         } else {

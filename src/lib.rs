@@ -98,15 +98,39 @@ impl<const N: usize> LoraE5<N> {
     }
 
     pub fn join(&mut self) -> Result<bool> {
-        const END_LINE: &str = "+JOIN: Done";
+        const END_LINE: &str = "+JOIN: Done\r\n";
         self.write_command("AT+JOIN=FORCE")?;
-        let n = self.read_until_pattern(END_LINE, Duration::from_secs(20))?;
+        let n = self.read_until_pattern(END_LINE, Duration::from_secs(7))?;
         let response = std::str::from_utf8(&self.buf[..n])?;
         if response.contains("Network Joined") {
             Ok(true)
         } else {
             Ok(false)
         }
+    }
+
+    pub fn set_port(&mut self, port: u8) -> Result {
+        const EXPECTED_PRELUDE: &str = "+PORT: ";
+        let cmd = format!("AT+PORT={port}");
+        self.write_command(&cmd)?;
+        let n = self.read_until_break(DEFAULT_TIMEOUT)?;
+        // //println!("{}", std::str::from_utf8(&self.buf[..n]).unwrap());
+        // Ok(())
+        self.check_framed_response(n, EXPECTED_PRELUDE, &port.to_string())
+    }
+
+    pub fn send(&mut self, data: &[u8], port: u8, confirmed: bool) -> Result {
+        //self.set_port(port)?;
+        let end_line = "+MSGHEX: Done\r\n";
+        let hex = hex::encode(&data);
+        let cmd = format!(
+            "AT+{}=\"{hex}\"",
+            if confirmed { "MSGHEX" } else { "CMSGHEX" }
+        );
+        self.write_command(&cmd)?;
+        let n = self.read_until_pattern(end_line, Duration::from_secs(3))?;
+        println!("{}", std::str::from_utf8(&self.buf[..n]).unwrap());
+        Ok(())
     }
 }
 
@@ -203,6 +227,12 @@ mod tests {
     }
 
     #[test]
+    fn set_port() {
+        let mut lora_e5 = lora_test_hardware();
+        lora_e5.set_port(5).unwrap();
+    }
+
+    #[test]
     fn join() {
         let credentials = Credentials::new(
             DevEui::from_str("6081F9A775278564").unwrap(),
@@ -215,6 +245,26 @@ mod tests {
         lora_e5.set_credentials(&credentials).unwrap();
         lora_e5.subband2_only().unwrap();
         lora_e5.join().unwrap();
+        std::thread::sleep(Duration::from_millis(50));
+    }
+
+    #[test]
+    fn join_and_send() {
+        let credentials = Credentials::new(
+            DevEui::from_str("6081F9A775278564").unwrap(),
+            AppEui::from_str("6081F9A498856DCC").unwrap(),
+            AppKey::from_str("72F36B996179E634537FCA76047D0B51").unwrap(),
+        );
+        let mut lora_e5 = lora_test_hardware();
+        lora_e5.set_mode(Mode::Otaa).unwrap();
+        lora_e5.set_region(Region::Us915).unwrap();
+        lora_e5.set_credentials(&credentials).unwrap();
+        lora_e5.subband2_only().unwrap();
+        lora_e5.join().unwrap();
+        std::thread::sleep(Duration::from_millis(150));
+        lora_e5.flush().unwrap();
+        lora_e5.set_port(4).unwrap();
+        lora_e5.send(&[1, 2, 3, 4], 3, true).unwrap();
         std::thread::sleep(Duration::from_millis(50));
     }
 }

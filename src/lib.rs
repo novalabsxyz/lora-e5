@@ -1,6 +1,6 @@
 use serialport::{SerialPort, SerialPortType};
+use std::time;
 use std::{str::FromStr, time::Duration};
-
 mod error;
 use error::Error;
 
@@ -12,6 +12,8 @@ pub struct LoraE5 {
 }
 
 pub type Result<T = ()> = std::result::Result<T, error::Error>;
+
+const DEFAULT_TIMEOUT: Duration = Duration::from_secs(5);
 
 impl LoraE5 {
     pub fn open_usb(vid: u16, pid: u16) -> Result<LoraE5> {
@@ -33,7 +35,7 @@ impl LoraE5 {
     pub fn is_ok(&mut self) -> Result<bool> {
         self.write_command("AT")?;
         let mut buf: Vec<u8> = vec![0; 32];
-        let n = self.read_until_break(&mut buf, 5)?;
+        let n = self.read_until_break(&mut buf, Duration::from_millis(50))?;
         let response = std::str::from_utf8(&buf[..n])?;
         if response.trim_end() == "+AT: OK" {
             Ok(true)
@@ -46,7 +48,7 @@ impl LoraE5 {
         const EXPECTED_PRELUDE: &str = "+VER: ";
         self.write_command("AT+VER")?;
         let mut buf: Vec<u8> = vec![0; 64];
-        let n = self.read_until_break(&mut buf, 5000)?;
+        let n = self.read_until_break(&mut buf, DEFAULT_TIMEOUT)?;
         let response = std::str::from_utf8(&buf[..n])?;
         let (prelude, version) = response.split_at(EXPECTED_PRELUDE.len());
         if prelude == EXPECTED_PRELUDE {
@@ -72,7 +74,7 @@ impl LoraE5 {
         let cmd = format!("AT+CH={ch},{}", if enable { "on" } else { "off" });
         self.write_command(&cmd)?;
         let mut buf: Vec<u8> = vec![0; 64];
-        let n = self.read_until_break(&mut buf, 5000)?;
+        let n = self.read_until_break(&mut buf, DEFAULT_TIMEOUT)?;
         let response = std::str::from_utf8(&buf[..n])?;
         if response.starts_with(&format!("+CH: CH{ch} off")) {
             Ok(())
@@ -91,26 +93,52 @@ impl LoraE5 {
         Ok(())
     }
 
-    fn read_until_break(&mut self, buf: &mut [u8], timeout: usize) -> Result<usize> {
+    fn read_until_break(&mut self, buf: &mut [u8], timeout: Duration) -> Result<usize> {
         let mut start = 0;
         let mut bytes_read = 0;
-        let mut loops = timeout;
+        let mut time = time::Instant::now();
         loop {
+            if let Ok(n) = self.port.read(&mut buf[bytes_read..]) {
+                if n != 0 {
+                    start = bytes_read;
+                    bytes_read += n;
+                    time = time::Instant::now();
+                } else {
+                    return Ok(bytes_read);
+                }
+            }
             for byte in &buf[start..bytes_read] {
                 if *byte == b'\n' {
                     return Ok(bytes_read);
                 }
             }
-            if let Ok(n) = self.port.read(&mut buf[bytes_read..]) {
-                start = bytes_read;
-                bytes_read += n;
-                loops = timeout;
-            } else {
-                loops -= 1;
-            }
-            if loops == 0 {
+            if time.elapsed() > timeout {
                 let partial_response = std::str::from_utf8(&buf[..bytes_read])?;
-                return Err(Error::UnexpectedResponse(partial_response.to_string()));
+                return Err(Error::PartialResponse(partial_response.to_string()));
+            }
+        }
+    }
+
+    fn read_until_close(
+        &mut self,
+        buf: &mut [u8],
+        timeout: Duration,
+    ) -> Result<usize> {
+        let mut bytes_read = 0;
+        let mut time = time::Instant::now();
+        loop {
+            if let Ok(n) = self.port.read(&mut buf[bytes_read..]) {
+                if n != 0 {
+                    bytes_read += n;
+                    time = time::Instant::now();
+                } else {
+                    println!("{}", std::str::from_utf8(&buf[..bytes_read]).unwrap());
+                    return Ok(bytes_read);
+                }
+            }
+            if time.elapsed() > timeout {
+                let partial_response = std::str::from_utf8(&buf[..bytes_read])?;
+                return Err(Error::PartialResponse(partial_response.to_string()));
             }
         }
     }
@@ -119,7 +147,7 @@ impl LoraE5 {
         const EXPECTED_PRELUDE: &str = "+ID: DevEui, ";
         self.write_command("AT+ID=DevEui")?;
         let mut buf: Vec<u8> = vec![0; 64];
-        let n = self.read_until_break(&mut buf, 5000)?;
+        let n = self.read_until_break(&mut buf, DEFAULT_TIMEOUT)?;
         let response = std::str::from_utf8(&buf[..n])?;
         let (prelude, dev_eui) = response.split_at(EXPECTED_PRELUDE.len());
         if prelude == EXPECTED_PRELUDE {
@@ -133,7 +161,7 @@ impl LoraE5 {
         const EXPECTED_PRELUDE: &str = "+ID: AppEui, ";
         self.write_command("AT+ID=AppEui")?;
         let mut buf: Vec<u8> = vec![0; 64];
-        let n = self.read_until_break(&mut buf, 5000)?;
+        let n = self.read_until_break(&mut buf, DEFAULT_TIMEOUT)?;
         let response = std::str::from_utf8(&buf[..n])?;
         let (prelude, app_eui) = response.split_at(EXPECTED_PRELUDE.len());
         if prelude == EXPECTED_PRELUDE {
@@ -148,7 +176,7 @@ impl LoraE5 {
         let cmd = format!("AT+ID=AppEui, {app_eui}");
         self.write_command(&cmd)?;
         let mut buf: Vec<u8> = vec![0; 64];
-        let n = self.read_until_break(&mut buf, 5000)?;
+        let n = self.read_until_break(&mut buf, DEFAULT_TIMEOUT)?;
         let response = std::str::from_utf8(&buf[..n])?;
         let (prelude, app_eui_str) = response.split_at(EXPECTED_PRELUDE.len());
         if prelude == EXPECTED_PRELUDE {
@@ -168,7 +196,7 @@ impl LoraE5 {
         let cmd = format!("AT+ID=DevEui, {dev_eui}");
         self.write_command(&cmd)?;
         let mut buf: Vec<u8> = vec![0; 64];
-        let n = self.read_until_break(&mut buf, 5000)?;
+        let n = self.read_until_break(&mut buf, DEFAULT_TIMEOUT)?;
         let response = std::str::from_utf8(&buf[..n])?;
         let (prelude, dev_eui_str) = response.split_at(EXPECTED_PRELUDE.len());
         if prelude == EXPECTED_PRELUDE {
@@ -188,7 +216,7 @@ impl LoraE5 {
         let cmd = format!("AT+KEY=APPKEY, {app_key}");
         self.write_command(&cmd)?;
         let mut buf: Vec<u8> = vec![0; 64];
-        let n = self.read_until_break(&mut buf, 5000)?;
+        let n = self.read_until_break(&mut buf, DEFAULT_TIMEOUT)?;
         let response = std::str::from_utf8(&buf[..n])?;
         let (prelude, app_key_str) = response.split_at(EXPECTED_PRELUDE.len());
         if prelude == EXPECTED_PRELUDE {
@@ -207,6 +235,56 @@ impl LoraE5 {
         self.set_dev_eui(&credentials.dev_eui)?;
         self.set_app_eui(&credentials.app_eui)?;
         self.set_app_key(&credentials.app_key)
+    }
+
+    pub fn set_region(&mut self, region: Region) -> Result {
+        const EXPECTED_PRELUDE: &str = "+DR: ";
+        let cmd = format!("AT+DR={}", region.as_str());
+        self.write_command(&cmd)?;
+        let mut buf: Vec<u8> = vec![0; 64];
+        let n = self.read_until_break(&mut buf, DEFAULT_TIMEOUT)?;
+        let response = std::str::from_utf8(&buf[..n])?;
+        let (prelude, region_response) = response.split_at(EXPECTED_PRELUDE.len());
+        if prelude == EXPECTED_PRELUDE {
+            if region_response.trim_end() == region.as_str() {
+                Ok(())
+            } else {
+                Err(Error::UnexpectedResponse(region.as_str().to_string()))
+            }
+        } else {
+            Err(Error::UnexpectedResponse(response.to_string()))
+        }
+    }
+
+    pub fn set_mode(&mut self, mode: Mode) -> Result {
+        const EXPECTED_PRELUDE: &str = "+MODE: ";
+        let cmd = format!("AT+MODE={}", mode.as_str());
+        self.write_command(&cmd)?;
+        let mut buf: Vec<u8> = vec![0; 64];
+        let n = self.read_until_break(&mut buf, DEFAULT_TIMEOUT)?;
+        let response = std::str::from_utf8(&buf[..n])?;
+        let (prelude, mode_response) = response.split_at(EXPECTED_PRELUDE.len());
+        if prelude == EXPECTED_PRELUDE {
+            if mode_response.trim_end() == mode.as_str() {
+                Ok(())
+            } else {
+                Err(Error::UnexpectedResponse(mode.as_str().to_string()))
+            }
+        } else {
+            Err(Error::UnexpectedResponse(response.to_string()))
+        }
+    }
+
+    pub fn join(&mut self) -> Result<bool> {
+        self.write_command("AT+JOIN=FORCE")?;
+        let mut buf: Vec<u8> = vec![0; 64];
+        let n = self.read_until_close(&mut buf, Duration::from_secs(10))?;
+        let response = std::str::from_utf8(&buf[..n])?;
+        if response.contains("Network Joined") {
+            Ok(true)
+        } else {
+            Ok(false)
+        }
     }
 }
 
@@ -281,6 +359,24 @@ mod tests {
     }
 
     #[test]
+    fn set_mode_otaa() {
+        let mut lora_e5 = LoraE5::open_usb(VID, PID).unwrap();
+        lora_e5.set_mode(Mode::Otaa).unwrap();
+    }
+
+    #[test]
+    fn set_mode_abp() {
+        let mut lora_e5 = LoraE5::open_usb(VID, PID).unwrap();
+        lora_e5.set_mode(Mode::Abp).unwrap();
+    }
+
+    #[test]
+    fn set_mode_test() {
+        let mut lora_e5 = LoraE5::open_usb(VID, PID).unwrap();
+        lora_e5.set_mode(Mode::Test).unwrap();
+    }
+
+    #[test]
     fn join() {
         let credentials = Credentials::new(
             DevEui::from_str("6081F9A775278564").unwrap(),
@@ -288,6 +384,11 @@ mod tests {
             AppKey::from_str("72F36B996179E634537FCA76047D0B51").unwrap(),
         );
         let mut lora_e5 = LoraE5::open_usb(VID, PID).unwrap();
+        lora_e5.set_mode(Mode::Otaa).unwrap();
+        lora_e5.set_region(Region::Us915).unwrap();
         lora_e5.set_credentials(&credentials).unwrap();
+        lora_e5.subband2_only().unwrap();
+        lora_e5.join().unwrap();
+        std::thread::sleep(Duration::from_millis(50));
     }
 }

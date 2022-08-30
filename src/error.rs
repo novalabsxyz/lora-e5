@@ -19,4 +19,6 @@ pub enum Error {
     Parse(#[from] ParseError),
     #[error("wrote incorrect amount of bytes: {0} instead of {1}")]
     IncorrectWrite(usize, usize),
+    #[error("ack was not received")]
+    Nack,
 }

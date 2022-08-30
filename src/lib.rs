@@ -9,6 +9,7 @@ use types::*;
 
 mod credentials;
 use credentials::*;
+use crate::Error::Parse;
 
 mod parse;
 
@@ -126,9 +127,22 @@ impl<const N: usize> LoraE5<N> {
             if confirmed { "MSGHEX" } else { "CMSGHEX" }
         );
         self.write_command(&cmd)?;
-        let _n = self.read_until_pattern(end_line, Duration::from_secs(3))?;
-        //todo: check confirmed uplinks are confirmed
-        Ok(())
+        let n = self.read_until_pattern(end_line, Duration::from_secs(3))?;
+        let response = std::str::from_utf8(&self.buf[..n])?;
+
+        if let Some(n) = response.find("RXWIN1") {
+            //todo parse signal quality & potential downlink
+            Ok(())
+        } else if let Some(n) = response.find("RXWIN2") {
+            //todo parse signal quality & potential downlink
+            Ok(())
+        } else {
+            if confirmed {
+                Err(Error::Nack)
+            } else {
+                Ok(())
+            }
+        }
     }
 }
 
@@ -254,12 +268,11 @@ mod tests {
             AppKey::from_str("72F36B996179E634537FCA76047D0B51").unwrap(),
         );
         let mut lora_e5 = lora_test_hardware();
-        lora_e5.set_mode(Mode::Otaa).unwrap();
-        lora_e5.set_region(Region::Us915).unwrap();
-        lora_e5.set_credentials(&credentials).unwrap();
-        lora_e5.subband2_only().unwrap();
-        lora_e5.join().unwrap();
-        lora_e5.set_port(4).unwrap();
+        // lora_e5.set_mode(Mode::Otaa).unwrap();
+        // lora_e5.set_region(Region::Us915).unwrap();
+        // lora_e5.set_credentials(&credentials).unwrap();
+        // lora_e5.subband2_only().unwrap();
+        // lora_e5.join().unwrap();
         lora_e5.send(&[1, 2, 3, 4], 3, true).unwrap();
     }
 }

@@ -278,12 +278,11 @@ impl<const N: usize> LoraE5<N> {
 ///   ie: cargo test --  --nocapture --test-threads 1
 #[cfg(test)]
 mod tests {
-    const VID: u16 = 4292;
-    const PID: u16 = 60000;
-
     use super::*;
-
+    
     fn lora_test_hardware() -> LoraE5<64_usize> {
+        const VID: u16 = 4292;
+        const PID: u16 = 60000;
         LoraE5::<64>::open_usb(VID, PID).unwrap()
     }
 

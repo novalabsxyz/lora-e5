@@ -1,3 +1,4 @@
+use std::num::ParseIntError;
 use crate::ParseError;
 use thiserror::Error;
 
@@ -21,4 +22,10 @@ pub enum Error {
     IncorrectWrite(usize, usize),
     #[error("ack was not received")]
     Nack,
+    #[error("failed to parse rssi/snr from: {0}")]
+    FailedToParseRssiSnr(String),
+    #[error("failed to parse rssi from: {0}")]
+    FailedToParseRssiInt(std::num::ParseIntError),
+    #[error("failed to parse snr from: {0}")]
+    FailedToParseSnrF32(std::num::ParseFloatError),
 }

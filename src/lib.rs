@@ -29,13 +29,19 @@ impl<const N: usize> LoraE5<N> {
                 if usb_port.vid == vid && usb_port.pid == pid {
                     let port = serialport::new(&port.port_name, 9600)
                         .timeout(Duration::from_millis(10))
-                        .open()
-                        .expect("Failed to open port");
+                        .open()?;
                     return Ok(Self { port, buf: [0; N] });
                 }
             }
         }
         Err(Error::PortNotFound { vid, pid })
+    }
+
+    pub fn open_path<'a>(self, path: impl Into<std::borrow::Cow<'a, str>>) -> Result<Self> {
+        let port = serialport::new(path, 9600)
+            .timeout(Duration::from_millis(10))
+            .open()?;
+        Ok(Self { port, buf: [0; N] })
     }
 
     fn write_command(&mut self, cmd: &str) -> Result {

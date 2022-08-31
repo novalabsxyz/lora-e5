@@ -37,7 +37,7 @@ impl<const N: usize> LoraE5<N> {
         Err(Error::PortNotFound { vid, pid })
     }
 
-    pub fn open_path<'a>(self, path: impl Into<std::borrow::Cow<'a, str>>) -> Result<Self> {
+    pub fn open_path<'a>(path: impl Into<std::borrow::Cow<'a, str>>) -> Result<Self> {
         let port = serialport::new(path, 9600)
             .timeout(Duration::from_millis(10))
             .open()?;

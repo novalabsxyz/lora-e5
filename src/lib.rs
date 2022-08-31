@@ -2,7 +2,7 @@ use serialport::{SerialPort, SerialPortType};
 use std::time::{self, Duration};
 
 mod error;
-use error::Error;
+pub use error::Error;
 
 mod types;
 use types::*;

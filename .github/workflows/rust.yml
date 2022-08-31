@@ -36,8 +36,8 @@ jobs:
         uses: actions-rs/clippy-check@v1
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          args: -- -Dclippy::all
+          args: -- -Dclippy::all --all-features
 
       - name: Build
-        run: cargo build --all
+        run: cargo build --all --all-features
 

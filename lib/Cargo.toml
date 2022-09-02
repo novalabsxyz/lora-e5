@@ -1,0 +1,20 @@
+[package]
+name = "lora-e5"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+serialport = { version = "4", default-features = false }
+thiserror = "1"
+hex = "0"
+
+[dependencies.tokio]
+version = "1"
+default-features=false
+features=["fs", "macros", "sync", "signal", "rt", "process", "time"]
+optional = true
+
+[features]
+default = []
+libudev = ["serialport/libudev"]
+runtime = ["tokio"]

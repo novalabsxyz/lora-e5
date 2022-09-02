@@ -1,13 +1,5 @@
-[package]
-name = "lora-e5"
-version = "0.1.0"
-edition = "2021"
-
-[dependencies]
-serialport = { version = "4", default-features = false }
-thiserror = "1"
-hex = "0"
-
-[features]
-default = []
-libudev = ["serialport/libudev"]
+[workspace]
+members = [
+    "cli",
+    "lib"
+]

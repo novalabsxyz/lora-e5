@@ -1,0 +1,16 @@
+[package]
+name = "lora-e5-cli"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+hex = "0"
+lora-e5 = { path = "../lib", features = ["runtime", "libudev"]}
+structopt = { version = "0", default-features = false }
+thiserror = "1"
+
+[dependencies.tokio]
+version = "1"
+default-features=false
+features=["fs", "macros", "sync", "signal", "rt", "process", "time"]
+

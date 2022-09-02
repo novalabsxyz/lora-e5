@@ -5,8 +5,6 @@ use super::*;
 use std::str::FromStr;
 
 fn lora_test_hardware() -> LoraE5<256_usize> {
-    const SILICON_LABS_VID: u16 = 0x10C4;
-    const CP210X_UART_BRIDGE_PID: u16 = 0xEA60;
     LoraE5::<256>::open_usb(SILICON_LABS_VID, CP210X_UART_BRIDGE_PID).unwrap()
 }
 
@@ -122,7 +120,7 @@ fn join_and_send() {
     lora_e5.set_region(Region::Us915).unwrap();
     lora_e5.set_credentials(&credentials).unwrap();
     lora_e5.subband2_only().unwrap();
-    assert!(lora_e5.join().unwrap());
+    lora_e5.join().unwrap();
     lora_e5.send(&[1, 2, 3, 4], 3, true).unwrap();
 }
 

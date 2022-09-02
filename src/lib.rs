@@ -9,7 +9,6 @@ use types::*;
 
 mod credentials;
 use credentials::*;
-use crate::Error::Parse;
 
 mod parse;
 
@@ -24,6 +23,11 @@ pub struct LoraE5<const N: usize> {
 pub type Result<T = ()> = std::result::Result<T, error::Error>;
 
 const DEFAULT_TIMEOUT: Duration = Duration::from_secs(5);
+
+pub struct Downlink {
+    pub rssi: isize,
+    pub snr: f32,
+}
 
 impl<const N: usize> LoraE5<N> {
     pub fn open_usb(vid: u16, pid: u16) -> Result<Self> {
@@ -106,7 +110,6 @@ impl<const N: usize> LoraE5<N> {
         self.write_command("AT+JOIN=FORCE")?;
         let n = self.read_until_pattern(END_LINE, Duration::from_secs(7))?;
         let response = std::str::from_utf8(&self.buf[..n])?;
-        println!("{response}");
         if response.contains("Network joined") {
             Ok(true)
         } else {
@@ -122,7 +125,7 @@ impl<const N: usize> LoraE5<N> {
         self.check_framed_response(n, EXPECTED_PRELUDE, &port.to_string())
     }
 
-    pub fn send(&mut self, data: &[u8], port: u8, confirmed: bool) -> Result {
+    pub fn send(&mut self, data: &[u8], port: u8, confirmed: bool) -> Result<Option<Downlink>> {
         self.set_port(port)?;
         let end_line = if confirmed {
             "+CMSGHEX: Done\r\n"
@@ -137,19 +140,19 @@ impl<const N: usize> LoraE5<N> {
         self.write_command(&cmd)?;
         let n = self.read_until_pattern(end_line, Duration::from_secs(3))?;
         let response = std::str::from_utf8(&self.buf[..n])?;
-        println!("{response}");
+
         if let Some(m) = response.find("RXWIN1") {
-            let (_rssi, _snr) = parse_rssi_snr(response, m)?;
-            Ok(())
+            let (rssi, snr) = parse_rssi_snr(response, m)?;
+            Ok(Some(Downlink { rssi, snr }))
         } else if let Some(m) = response.find("RXWIN2") {
-            let (_rssi, _snr) = parse_rssi_snr(response, m)?;
-            Ok(())
+            let (rssi, snr) = parse_rssi_snr(response, m)?;
+            Ok(Some(Downlink { rssi, snr }))
+        } else if confirmed {
+            // we expect a downlink when sending confirmed uplinks
+            // todo: check for ACK in response
+            Err(Error::Nack)
         } else {
-            if confirmed {
-                Err(Error::Nack)
-            } else {
-                Ok(())
-            }
+            Ok(None)
         }
     }
 }
@@ -160,10 +163,13 @@ pub(crate) fn parse_rssi_snr(response: &str, m: usize) -> Result<(isize, f32)> {
         let (line, _) = remaining_str.split_at(n);
         let (_, signal) = line.split_at(", RSSI ".len());
         if let Some(n) = signal.find(", ") {
-            let (rssi_remainder, snr_remainder) = signal.split_at(n );
+            let (rssi_remainder, snr_remainder) = signal.split_at(n);
             let (_, rssi) = rssi_remainder.split_at(" RSSI ".len());
             let (_, snr) = snr_remainder.split_at(", SNR ".len());
-            return Ok((rssi.parse().map_err(Error::FailedToParseRssiInt)?, snr.parse().map_err(Error::FailedToParseSnrF32)?));
+            return Ok((
+                rssi.parse().map_err(Error::FailedToParseRssiInt)?,
+                snr.parse().map_err(Error::FailedToParseSnrF32)?,
+            ));
         }
     }
     Err(Error::FailedToParseRssiSnr(response.to_string()))

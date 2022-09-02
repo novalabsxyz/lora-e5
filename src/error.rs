@@ -19,4 +19,12 @@ pub enum Error {
     Parse(#[from] ParseError),
     #[error("wrote incorrect amount of bytes: {0} instead of {1}")]
     IncorrectWrite(usize, usize),
+    #[error("ack was not received")]
+    Nack,
+    #[error("failed to parse rssi/snr from: {0}")]
+    FailedToParseRssiSnr(String),
+    #[error("failed to parse rssi from: {0}")]
+    FailedToParseRssiInt(std::num::ParseIntError),
+    #[error("failed to parse snr from: {0}")]
+    FailedToParseSnrF32(std::num::ParseFloatError),
 }

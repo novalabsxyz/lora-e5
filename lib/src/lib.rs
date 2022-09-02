@@ -8,12 +8,18 @@ mod types;
 use types::*;
 
 mod credentials;
-use credentials::*;
+pub use credentials::*;
 
 mod parse;
 
 #[cfg(test)]
 mod tests;
+
+pub const SILICON_LABS_VID: u16 = 0x10C4;
+pub const CP210X_UART_BRIDGE_PID: u16 = 0xEA60;
+
+#[cfg(feature = "runtime")]
+pub mod process;
 
 pub struct LoraE5<const N: usize> {
     port: Box<dyn SerialPort>,
@@ -24,9 +30,16 @@ pub type Result<T = ()> = std::result::Result<T, error::Error>;
 
 const DEFAULT_TIMEOUT: Duration = Duration::from_secs(5);
 
+#[derive(Debug)]
 pub struct Downlink {
     pub rssi: isize,
     pub snr: f32,
+}
+#[derive(Debug)]
+pub enum JoinResponse {
+    JoinComplete,
+    JoinFailed,
+    AlreadyJoined,
 }
 
 impl<const N: usize> LoraE5<N> {
@@ -111,16 +124,32 @@ impl<const N: usize> LoraE5<N> {
         self.check_framed_response(n, EXPECTED_PRELUDE, mode.as_str())
     }
 
-    pub fn join(&mut self) -> Result<bool> {
-        const END_LINE: &str = "+JOIN: Done\r\n";
-        self.write_command("AT+JOIN=FORCE")?;
-        let n = self.read_until_pattern(END_LINE, Duration::from_secs(7))?;
+    pub fn join(&mut self) -> Result<JoinResponse> {
+        const JOIN_DONE: &str = "+JOIN: Done\r\n";
+        const ALREADY_JOINED: &str = "+JOIN: Joined already\r\n";
+
+        self.write_command("AT+JOIN")?;
+        let n = self.read_until_pattern(&[JOIN_DONE, ALREADY_JOINED], Duration::from_secs(20))?;
         let response = std::str::from_utf8(&self.buf[..n])?;
-        if response.contains("Network joined") {
-            Ok(true)
+        Ok(if response.contains(&ALREADY_JOINED) {
+            JoinResponse::AlreadyJoined
+        } else if response.contains("Network joined") {
+            JoinResponse::JoinComplete
         } else {
-            Ok(false)
-        }
+            JoinResponse::JoinFailed
+        })
+    }
+
+    pub fn force_join(&mut self) -> Result<JoinResponse> {
+        const JOIN_DONE: &str = "+JOIN: Done\r\n";
+        self.write_command("AT+JOIN=FORCE")?;
+        let n = self.read_until_pattern(&[JOIN_DONE], Duration::from_secs(20))?;
+        let response = std::str::from_utf8(&self.buf[..n])?;
+        Ok(if response.contains("Network joined") {
+            JoinResponse::JoinComplete
+        } else {
+            JoinResponse::JoinFailed
+        })
     }
 
     pub fn set_port(&mut self, port: u8) -> Result {
@@ -138,13 +167,47 @@ impl<const N: usize> LoraE5<N> {
         } else {
             "+MSGHEX: Done\r\n"
         };
+
         let hex = hex::encode(&data);
         let cmd = format!(
             "AT+{}=\"{hex}\"",
             if confirmed { "CMSGHEX" } else { "MSGHEX" }
         );
         self.write_command(&cmd)?;
-        let n = self.read_until_pattern(end_line, Duration::from_secs(3))?;
+        let n = self.read_until_pattern(&[end_line], Duration::from_secs(3))?;
+        let response = std::str::from_utf8(&self.buf[..n])?;
+
+        if let Some(m) = response.find("RXWIN1") {
+            let (rssi, snr) = parse_rssi_snr(response, m)?;
+            Ok(Some(Downlink { rssi, snr }))
+        } else if let Some(m) = response.find("RXWIN2") {
+            let (rssi, snr) = parse_rssi_snr(response, m)?;
+            Ok(Some(Downlink { rssi, snr }))
+        } else if confirmed {
+            // we expect a downlink when sending confirmed uplinks
+            // todo: check for ACK in response
+            Err(Error::Nack)
+        } else {
+            Ok(None)
+        }
+    }
+
+    pub fn send_ascii(
+        &mut self,
+        data: &str,
+        port: u8,
+        confirmed: bool,
+    ) -> Result<Option<Downlink>> {
+        self.set_port(port)?;
+        let end_line = if confirmed {
+            "+CMSG: Done\r\n"
+        } else {
+            "+MSG: Done\r\n"
+        };
+        let hex = hex::encode(&data);
+        let cmd = format!("AT+{}=\"{hex}\"", if confirmed { "CMSG" } else { "MSG" });
+        self.write_command(&cmd)?;
+        let n = self.read_until_pattern(&[end_line], Duration::from_secs(3))?;
         let response = std::str::from_utf8(&self.buf[..n])?;
 
         if let Some(m) = response.find("RXWIN1") {

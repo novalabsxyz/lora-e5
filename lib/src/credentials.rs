@@ -1,5 +1,6 @@
 use std::{fmt, str::FromStr};
 
+#[derive(Debug)]
 pub struct Credentials {
     pub app_eui: AppEui,
     pub app_key: AppKey,

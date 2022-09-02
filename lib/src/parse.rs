@@ -2,10 +2,14 @@ use super::*;
 
 impl<const N: usize> LoraE5<N> {
     pub(crate) fn read_until_break(&mut self, timeout: Duration) -> Result<usize> {
-        self.read_until_pattern("\n", timeout)
+        self.read_until_pattern(&["\n"], timeout)
     }
 
-    pub(crate) fn read_until_pattern(&mut self, pattern: &str, timeout: Duration) -> Result<usize> {
+    pub(crate) fn read_until_pattern(
+        &mut self,
+        patterns: &[&str],
+        timeout: Duration,
+    ) -> Result<usize> {
         let mut cursor = 0;
         let mut time = time::Instant::now();
         loop {
@@ -16,8 +20,10 @@ impl<const N: usize> LoraE5<N> {
                 }
             }
 
-            if std::str::from_utf8(&self.buf[..cursor])?.ends_with(pattern) {
-                return Ok(cursor);
+            for pattern in patterns {
+                if std::str::from_utf8(&self.buf[..cursor])?.ends_with(pattern) {
+                    return Ok(cursor);
+                }
             }
 
             if time.elapsed() > timeout {

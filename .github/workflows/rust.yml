@@ -32,6 +32,9 @@ jobs:
       - name: Check formatting
         run: cargo fmt  -- --check
 
+      - name: Compile tests
+        run: cargo test --no-run
+
       - name: Clippy
         uses: actions-rs/clippy-check@v1
         with:

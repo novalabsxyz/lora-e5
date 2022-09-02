@@ -141,8 +141,9 @@ impl<const N: usize> LoraE5<N> {
         if let Some(m) = response.find("RXWIN1") {
             let (_rssi, _snr) = parse_rssi_snr(response, m)?;
             Ok(())
-        } else if let Some(n) = response.find("RXWIN2") {
+        } else if let Some(m) = response.find("RXWIN2") {
             let (_rssi, _snr) = parse_rssi_snr(response, m)?;
+            Ok(())
         } else {
             if confirmed {
                 Err(Error::Nack)

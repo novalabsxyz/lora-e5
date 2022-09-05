@@ -127,16 +127,16 @@ async fn main() -> Result {
             port,
             confirmed,
         }) => {
-            let join_response = client.send(data.data, port, confirmed).await?;
-            println!("{join_response:?}");
+            let response = client.send(data.data, port, confirmed).await?;
+            println!("{response:?}");
         }
         Cmd::SendAscii(SendAscii {
             data,
             port,
             confirmed,
         }) => {
-            let join_response = client.send_ascii(data, port, confirmed).await?;
-            println!("{join_response:?}");
+            let response = client.send_ascii(data, port, confirmed).await?;
+            println!("{response:?}");
         }
     }
 

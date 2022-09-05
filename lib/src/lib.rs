@@ -35,7 +35,7 @@ pub struct Downlink {
     pub rssi: isize,
     pub snr: f32,
 }
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum JoinResponse {
     JoinComplete,
     JoinFailed,

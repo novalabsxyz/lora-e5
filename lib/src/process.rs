@@ -142,7 +142,6 @@ impl Runtime {
                             .map_err(|_| Error::ResponseSendError)?;
                     }
                     Request::Join(force, sender) => {
-                        println!("Sending Join");
                         let result = if force {
                             lora_e5.force_join()
                         } else {

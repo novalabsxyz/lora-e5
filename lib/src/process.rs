@@ -1,4 +1,4 @@
-use crate::{Credentials, Mode, Region};
+use crate::{Credentials, Mode, Region, DR};
 use crate::{Downlink, Error as LoraE5Error, JoinResponse, LoraE5};
 use tokio::{
     sync::{mpsc, oneshot},
@@ -13,6 +13,7 @@ pub enum Request {
     At(String, Duration, oneshot::Sender<Result<String>>),
     Join(bool, oneshot::Sender<Result<JoinResponse>>),
     Configure(Credentials, oneshot::Sender<Result>),
+    DataRate(DR, oneshot::Sender<Result>),
     Shutdown,
     SendData(Vec<u8>, u8, bool, oneshot::Sender<Result<Option<Downlink>>>),
     SendAscii(String, u8, bool, oneshot::Sender<Result<Option<Downlink>>>),
@@ -34,6 +35,12 @@ impl Client {
     pub async fn join(&self, force: bool) -> Result<JoinResponse> {
         let (tx, rx) = oneshot::channel();
         self.sender.send(Request::Join(force, tx)).await?;
+        rx.await?
+    }
+
+    pub async fn data_rate(&self, dr: DR) -> Result {
+        let (tx, rx) = oneshot::channel();
+        self.sender.send(Request::DataRate(dr, tx)).await?;
         rx.await?
     }
 
@@ -149,7 +156,10 @@ impl Runtime {
                         };
                         respond(sender, result.map_err(|e| e.into()))?;
                     }
-
+                    Request::DataRate(dr, sender) => {
+                        let result = lora_e5.set_datarate(dr);
+                        respond(sender, result.map_err(|e| e.into()))?;
+                    }
                     Request::SendData(data, port, confirmed, sender) => {
                         let result = lora_e5.send(&data, port, confirmed);
                         respond(sender, result.map_err(|e| e.into()))?;

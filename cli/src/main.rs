@@ -1,5 +1,6 @@
 use lora_e5::{
-    process, AppEui, AppKey, Credentials, DevEui, LoraE5, CP210X_UART_BRIDGE_PID, SILICON_LABS_VID,
+    process, AppEui, AppKey, Credentials, DevEui, LoraE5, CP210X_UART_BRIDGE_PID, DR,
+    SILICON_LABS_VID,
 };
 use std::str::FromStr;
 use structopt::StructOpt;
@@ -12,10 +13,12 @@ enum Cmd {
     /// Send AT command to modem. Returns single-line response (does not work well with multi-line
     /// responses, such as Join)
     At(At),
-    /// Join
+    /// Join. Use --force flag to force a join, otherwise active session will be maintained.
     Join(Join),
-    /// Configure
+    /// Configure with credentials
     Configure(Configure),
+    /// Set data rate
+    Datarate(Datarate),
     /// Send data. Input must be in hex format.
     Send(SendHex),
     /// Send ASCII
@@ -42,6 +45,11 @@ struct SendHex {
     /// Require ACK
     #[structopt(long, short)]
     pub confirmed: bool,
+}
+
+#[derive(Debug, StructOpt)]
+struct Datarate {
+    pub dr: DR,
 }
 
 #[derive(Debug)]
@@ -121,6 +129,11 @@ async fn main() -> Result {
                     app_key,
                 })
                 .await?;
+            println!("Credentials configured");
+        }
+        Cmd::Datarate(Datarate { dr }) => {
+            client.data_rate(dr).await?;
+            println!("DR{} set", dr.as_str());
         }
         Cmd::Send(SendHex {
             data,

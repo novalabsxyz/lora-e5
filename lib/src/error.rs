@@ -27,4 +27,6 @@ pub enum Error {
     FailedToParseRssiInt(std::num::ParseIntError),
     #[error("failed to parse snr from: {0}")]
     FailedToParseSnrF32(std::num::ParseFloatError),
+    #[error("invalid datarate string: {0}")]
+    InvalidDatarateStr(String),
 }

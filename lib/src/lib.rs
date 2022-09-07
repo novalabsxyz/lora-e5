@@ -5,7 +5,7 @@ mod error;
 pub use error::Error;
 
 mod types;
-use types::*;
+pub use types::*;
 
 mod credentials;
 pub use credentials::*;
@@ -35,6 +35,7 @@ pub struct Downlink {
     pub rssi: isize,
     pub snr: f32,
 }
+
 #[derive(Debug, PartialEq, Eq)]
 pub enum JoinResponse {
     JoinComplete,
@@ -122,6 +123,18 @@ impl<const N: usize> LoraE5<N> {
         self.write_command(&cmd)?;
         let n = self.read_until_break(DEFAULT_TIMEOUT)?;
         self.check_framed_response(n, EXPECTED_PRELUDE, mode.as_str())
+    }
+
+    pub fn set_datarate(&mut self, dr: DR) -> Result {
+        let cmd = format!("AT+DR={}", dr.as_str());
+        self.write_command(&cmd)?;
+        let n = self.read_until_pattern(&DR::all_patterns(), DEFAULT_TIMEOUT)?;
+        let response = std::str::from_utf8(&self.buf[..n])?;
+        if response.contains(dr.termination_pattern()) {
+            Ok(())
+        } else {
+            Err(Error::UnexpectedResponse(response.to_string()))
+        }
     }
 
     pub fn join(&mut self) -> Result<JoinResponse> {

@@ -1,12 +1,11 @@
 use crate::{Credentials, Mode, Region, DR};
 use crate::{Downlink, Error as LoraE5Error, JoinResponse, LoraE5};
+use std::sync::{Arc, Mutex};
 use tokio::{
     sync::{mpsc, oneshot},
     task,
     time::Duration,
-
 };
-use std::sync::{Arc, Mutex};
 
 pub type Result<T = ()> = std::result::Result<T, Error>;
 
@@ -126,69 +125,64 @@ impl Runtime {
             let lora_e5 = lora_e5.clone();
             match request {
                 Request::At(cmd, timeout, sender) => {
-                    let response = task::spawn_blocking( move || {
+                    let response = task::spawn_blocking(move || {
                         let mut lora_e5 = lora_e5.lock().unwrap();
-                        if let Err(e) = lora_e5.write_command(&cmd) {
-                            Err(e.into())
-                        } else {
-                            match lora_e5.read_until_break(timeout) {
-                                Ok(n) => {
-                                    let response =
-                                        std::str::from_utf8(&lora_e5.buf[..n])?.to_string();
-                                    Ok(response)
-                                }
-                                Err(e) => {
-                                    Err(e.into())
-                                }
-                            }
-                        }
-                    }).await?;
+                        lora_e5.write_command(&cmd)?;
+                        let n = lora_e5.read_until_break(timeout)?;
+                        Ok(std::str::from_utf8(&lora_e5.buf[..n])?.to_string())
+
+                    })
+                    .await?;
                     respond(sender, response)?;
                 }
                 Request::Configure(credentials, response_sender) => {
-                    //todo: send back errors
-                    task::spawn_blocking( move || {
+                    let result = task::spawn_blocking(move || {
                         let mut lora_e5 = lora_e5.lock().unwrap();
                         lora_e5.set_mode(Mode::Otaa)?;
                         lora_e5.set_region(Region::Us915)?;
                         lora_e5.set_credentials(&credentials)?;
                         lora_e5.subband2_only()?;
-                        Ok::<(), Error>(())
-                    }).await?;
+                        Ok(())
+                    })
+                    .await?;
                     response_sender
-                        .send(Ok(()))
+                        .send(result)
                         .map_err(|_| Error::ResponseSendError)?;
                 }
                 Request::Join(force, sender) => {
-                    let result = task::spawn_blocking( move || {
+                    let result = task::spawn_blocking(move || {
                         let mut lora_e5 = lora_e5.lock().unwrap();
                         if force {
                             lora_e5.force_join()
                         } else {
                             lora_e5.join()
                         }
-                    }).await?;
+                    })
+                    .await?;
                     respond(sender, result.map_err(|e| e.into()))?;
                 }
                 Request::DataRate(dr, sender) => {
-                    let result = task::spawn_blocking( move || {
+                    let result = task::spawn_blocking(move || {
                         let mut lora_e5 = lora_e5.lock().unwrap();
                         lora_e5.set_datarate(dr)
-                    }).await?;
+                    })
+                    .await?;
                     respond(sender, result.map_err(|e| e.into()))?;
                 }
                 Request::SendData(data, port, confirmed, sender) => {
-                    let result = task::spawn_blocking( move || {
+                    let result = task::spawn_blocking(move || {
                         let mut lora_e5 = lora_e5.lock().unwrap();
                         lora_e5.send(&data, port, confirmed)
-                    }).await?;
+                    })
+                    .await?;
                     respond(sender, result.map_err(|e| e.into()))?;
                 }
                 Request::SendAscii(data, port, confirmed, sender) => {
-                    let result = task::spawn_blocking( move || {
+                    let result = task::spawn_blocking(move || {
                         let mut lora_e5 = lora_e5.lock().unwrap();
                         lora_e5.send_ascii(&data, port, confirmed)
-                    }).await?;
+                    })
+                    .await?;
                     respond(sender, result.map_err(|e| e.into()))?;
                 }
                 Request::Shutdown => {

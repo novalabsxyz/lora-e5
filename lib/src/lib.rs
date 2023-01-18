@@ -144,7 +144,7 @@ impl<const N: usize> LoraE5<N> {
         self.write_command("AT+JOIN")?;
         let n = self.read_until_pattern(&[JOIN_DONE, ALREADY_JOINED], Duration::from_secs(20))?;
         let response = std::str::from_utf8(&self.buf[..n])?;
-        Ok(if response.contains(&ALREADY_JOINED) {
+        Ok(if response.contains(ALREADY_JOINED) {
             JoinResponse::AlreadyJoined
         } else if response.contains("Network joined") {
             JoinResponse::JoinComplete
@@ -181,7 +181,7 @@ impl<const N: usize> LoraE5<N> {
             "+MSGHEX: Done\r\n"
         };
 
-        let hex = hex::encode(&data);
+        let hex = hex::encode(data);
         let cmd = format!(
             "AT+{}=\"{hex}\"",
             if confirmed { "CMSGHEX" } else { "MSGHEX" }
@@ -217,7 +217,7 @@ impl<const N: usize> LoraE5<N> {
         } else {
             "+MSG: Done\r\n"
         };
-        let hex = hex::encode(&data);
+        let hex = hex::encode(data);
         let cmd = format!("AT+{}=\"{hex}\"", if confirmed { "CMSG" } else { "MSG" });
         self.write_command(&cmd)?;
         let n = self.read_until_pattern(&[end_line], Duration::from_secs(3))?;

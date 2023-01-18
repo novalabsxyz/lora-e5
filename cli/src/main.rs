@@ -61,7 +61,7 @@ impl FromStr for HexData {
     type Err = hex::FromHexError;
 
     fn from_str(str: &str) -> std::result::Result<HexData, Self::Err> {
-        let data = hex::decode(&str)?;
+        let data = hex::decode(str)?;
         Ok(HexData { data })
     }
 }

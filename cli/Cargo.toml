@@ -2,6 +2,12 @@
 name = "lora-e5-cli"
 version = "0.1.0"
 edition = "2021"
+authors = ["Louis Thiery <thiery.louis@gmail.com>"]
+description = "CLI tool for the SEEED LoRa-E5 module"
+license = "Apache-2.0"
+repository = "https://github.com/novalabsxyz/lora-e5"
+readme = "README.md"
+keywords = ["lora-e5", "lorawan", "seeed"]
 
 [dependencies]
 hex = "0"

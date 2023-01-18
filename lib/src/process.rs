@@ -130,7 +130,6 @@ impl Runtime {
                         lora_e5.write_command(&cmd)?;
                         let n = lora_e5.read_until_break(timeout)?;
                         Ok(std::str::from_utf8(&lora_e5.buf[..n])?.to_string())
-
                     })
                     .await?;
                     respond(sender, response)?;

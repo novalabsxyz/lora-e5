@@ -1,6 +1,6 @@
 use std::{fmt, str::FromStr};
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Credentials {
     pub app_eui: AppEui,
     pub app_key: AppKey,
@@ -19,7 +19,7 @@ impl Credentials {
 
 macro_rules! derive_from_str {
     ($name:ident, $size:expr) => {
-        #[derive(Debug, PartialEq, Eq)]
+        #[derive(Debug, Clone, PartialEq, Eq)]
         pub struct $name([u8; $size]);
 
         impl FromStr for $name {

@@ -6,7 +6,6 @@ authors = ["Louis Thiery <thiery.louis@gmail.com>"]
 description = "CLI tool for the SEEED LoRa-E5 module"
 license = "Apache-2.0"
 repository = "https://github.com/novalabsxyz/lora-e5"
-readme = "README.md"
 keywords = ["lora-e5", "lorawan", "seeed"]
 
 [dependencies]

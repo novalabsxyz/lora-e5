@@ -100,10 +100,7 @@ impl<const N: usize> LoraE5<N> {
     }
 
     pub fn subband2_only(&mut self) -> Result {
-        for n in 0..8 {
-            self.set_channel(n, false)?;
-        }
-        for n in 16..72 {
+        for n in (0..8).chain(16..72) {
             self.set_channel(n, false)?;
         }
         Ok(())

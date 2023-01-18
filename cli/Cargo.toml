@@ -10,9 +10,9 @@ readme = "README.md"
 keywords = ["lora-e5", "lorawan", "seeed"]
 
 [dependencies]
+clap = { version = "4", features = ["derive"]}
 hex = "0"
 lora-e5 = { path = "../lib", features = ["runtime", "libudev"]}
-structopt = { version = "0", default-features = false }
 thiserror = "1"
 
 [dependencies.tokio]

@@ -3,12 +3,12 @@ use lora_e5::{
     SILICON_LABS_VID,
 };
 use std::str::FromStr;
-use structopt::StructOpt;
 use thiserror::Error;
 use tokio::time::Duration;
 
-#[derive(Debug, StructOpt)]
-#[structopt(name = "lora-e5-cli", about = "CLI for interacting with LoRa E5")]
+#[derive(Debug, clap::Parser)]
+#[clap(version = env!("CARGO_PKG_VERSION"))]
+#[clap(name = "lora-e5-cli", about = "CLI for interacting with LoRa E5")]
 enum Cmd {
     /// Send AT command to modem. Returns single-line response (does not work well with multi-line
     /// responses, such as Join)
@@ -25,7 +25,7 @@ enum Cmd {
     SendAscii(SendAscii),
 }
 
-#[derive(Debug, StructOpt)]
+#[derive(Debug, Clone, clap::Args)]
 struct Configure {
     /// DevEui as hex string
     pub dev_eui: DevEui,
@@ -35,24 +35,24 @@ struct Configure {
     pub app_key: AppKey,
 }
 
-#[derive(Debug, StructOpt)]
+#[derive(Debug, Clone, clap::Args)]
 struct SendHex {
     /// Data in hexadecimal format
     pub data: HexData,
     /// Port
-    #[structopt(default_value = "1")]
+    #[arg(default_value = "1")]
     pub port: u8,
     /// Require ACK
-    #[structopt(long, short)]
+    #[arg(long, short)]
     pub confirmed: bool,
 }
 
-#[derive(Debug, StructOpt)]
+#[derive(Debug, Clone, clap::Args)]
 struct Datarate {
     pub dr: DR,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, clap::Args)]
 struct HexData {
     data: Vec<u8>,
 }
@@ -66,30 +66,30 @@ impl FromStr for HexData {
     }
 }
 
-#[derive(Debug, StructOpt)]
+#[derive(Debug, clap::Args)]
 struct SendAscii {
     /// ASCII string
     pub data: String,
-    #[structopt(default_value = "1")]
+    #[arg(default_value = "1")]
     pub port: u8,
     /// Require ACK
-    #[structopt(long, short)]
+    #[arg(long, short)]
     pub confirmed: bool,
 }
 
-#[derive(Debug, StructOpt)]
+#[derive(Debug, clap::Args)]
 struct At {
     /// AT Command
     cmd: String,
     /// Timeout in millis,
-    #[structopt(default_value = "250")]
+    #[arg(default_value = "250")]
     timeout: u64,
 }
 
-#[derive(Debug, StructOpt)]
+#[derive(Debug, clap::Args)]
 struct Join {
     /// Force a join request. Otherwise, if device is already joined, no join occurs.
-    #[structopt(long, short)]
+    #[arg(long, short)]
     force: bool,
 }
 
@@ -97,7 +97,8 @@ pub type Result<T = ()> = std::result::Result<T, Error>;
 
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> Result {
-    let cmd = Cmd::from_args();
+    use clap::Parser;
+    let cmd = Cmd::parse();
 
     let process = process::Setup::default();
     let client = process.get_client();

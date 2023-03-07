@@ -11,7 +11,7 @@ keywords = ["lora-e5", "lorawan", "seeed"]
 [dependencies]
 clap = { version = "4", features = ["derive"]}
 hex = "0"
-lora-e5 = "0"
+lora-e5 = { version  = "0", features = ["runtime"] }
 thiserror = "1"
 
 [dependencies.tokio]

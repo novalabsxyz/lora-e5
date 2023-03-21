@@ -11,7 +11,7 @@ pub enum Error {
     Io(#[from] std::io::Error),
     #[error("unexpected at response: {0}")]
     UnexpectedResponse(String),
-    #[error("partial response after timeout: {0}")]
+    #[error("partial response after timeout: \"{0}\"")]
     PartialResponse(String),
     #[error("enabled to find port with pid = {vid} abd vid = {pid}")]
     PortNotFound { vid: u16, pid: u16 },
@@ -29,4 +29,6 @@ pub enum Error {
     FailedToParseSnrF32(std::num::ParseFloatError),
     #[error("invalid datarate string: {0}")]
     InvalidDatarateStr(String),
+    #[error("modem is busy")]
+    Busy,
 }

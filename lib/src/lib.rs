@@ -172,10 +172,16 @@ impl<const N: usize> LoraE5<N> {
 
     pub fn send(&mut self, data: &[u8], port: u8, confirmed: bool) -> Result<Option<Downlink>> {
         self.set_port(port)?;
-        let end_line = if confirmed {
-            "+CMSGHEX: Done\r\n"
+        let start_line = if confirmed {
+            "+CMSGHEX: Start\r\n"
         } else {
-            "+MSGHEX: Done\r\n"
+            "+MSGHEX: Start\r\n"
+        };
+
+        let busy_line = if confirmed {
+            "+CMSGHEX: LoRaWAN modem is busy\r\n"
+        } else {
+            "+MSGHEX: LoRaWAN modem is busy\r\n"
         };
 
         let hex = hex::encode(data);
@@ -184,9 +190,24 @@ impl<const N: usize> LoraE5<N> {
             if confirmed { "CMSGHEX" } else { "MSGHEX" }
         );
         self.write_command(&cmd)?;
-        let n = self.read_until_pattern(&[end_line], Duration::from_secs(3))?;
+        // wait for the Start
+        let n = self.read_until_pattern(&[start_line, busy_line], Duration::from_secs(3))?;
+        let response = std::str::from_utf8(&self.buf[..n])?;
+        let busy = response == busy_line;
+        let end_line = if confirmed {
+            "+CMSGHEX: Done\r\n"
+        } else {
+            "+MSGHEX: Done\r\n"
+        };
+        // wait for the Done
+        let n = self.read_until_pattern(&[end_line], Duration::from_secs(10))?;
         let response = std::str::from_utf8(&self.buf[..n])?;
 
+        if busy {
+            return Err(Error::Busy);
+        }
+
+        // if we weren't busy, we may have gotten some attributes
         if let Some(m) = response.find("RXWIN1") {
             let (rssi, snr) = parse_rssi_snr(response, m)?;
             Ok(Some(Downlink { rssi, snr }))

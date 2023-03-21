@@ -1,5 +1,8 @@
 use serialport::{SerialPort, SerialPortType};
-use std::time::{self, Duration};
+use std::{
+    io::IoSlice,
+    time::{self, Duration},
+};
 
 mod error;
 pub use error::Error;
@@ -67,15 +70,15 @@ impl<const N: usize> LoraE5<N> {
     }
 
     fn write_command(&mut self, cmd: &str) -> Result {
-        let n = self.port.write(cmd.as_bytes())?;
-        if n != cmd.len() {
-            return Err(Error::IncorrectWrite(n, cmd.len()));
+        let n = self
+            .port
+            .write_vectored(&[IoSlice::new(cmd.as_bytes()), IoSlice::new(b"\n")])?;
+        let expected_n = cmd.len() + 1;
+        if n != expected_n {
+            Err(Error::IncorrectWrite(n, expected_n))
+        } else {
+            Ok(())
         }
-        let n = self.port.write("\n".as_bytes())?;
-        if n != 1 {
-            return Err(Error::IncorrectWrite(n, 1));
-        }
-        Ok(())
     }
 
     pub fn is_ok(&mut self) -> Result<bool> {

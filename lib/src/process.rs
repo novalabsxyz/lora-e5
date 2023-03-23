@@ -113,9 +113,8 @@ pub struct Runtime {
 }
 
 fn respond<T>(response_sender: oneshot::Sender<Result<T>>, response: Result<T>) -> Result {
-    response_sender
-        .send(response)
-        .map_err(|_| Error::ResponseSendError)
+    let _ = response_sender.send(response);
+    Ok(())
 }
 
 impl Runtime {
@@ -144,9 +143,7 @@ impl Runtime {
                         Ok(())
                     })
                     .await?;
-                    response_sender
-                        .send(result)
-                        .map_err(|_| Error::ResponseSendError)?;
+                    respond(response_sender, result)?;
                 }
                 Request::Join(force, sender) => {
                     let result = task::spawn_blocking(move || {
@@ -207,6 +204,4 @@ pub enum Error {
     RequestSendError(#[from] mpsc::error::SendError<Request>),
     #[error("response receive error: {0}")]
     ResponseReceiveError(#[from] oneshot::error::RecvError),
-    #[error("response send error")]
-    ResponseSendError,
 }

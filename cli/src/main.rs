@@ -17,6 +17,10 @@ enum Cmd {
     Join(Join),
     /// Configure with credentials
     Configure(Configure),
+    /// Read out AppEui
+    GetAppEui,
+    /// Read out DevEui
+    GetDevEui,
     /// Set data rate
     Datarate(Datarate),
     /// Send data. Input must be in hex format.
@@ -131,6 +135,14 @@ async fn main() -> Result {
                 })
                 .await?;
             println!("Credentials configured");
+        }
+        Cmd::GetAppEui => {
+            let app_eui = client.get_app_eui().await?.to_string();
+            println!("{app_eui}");
+        }
+        Cmd::GetDevEui => {
+            let dev_eui = client.get_dev_eui().await?.to_string();
+            println!("{dev_eui}");
         }
         Cmd::Datarate(Datarate { dr }) => {
             client.data_rate(dr).await?;

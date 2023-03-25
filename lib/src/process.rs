@@ -1,4 +1,4 @@
-use crate::{Credentials, Mode, Region, DR};
+use crate::{AppEui, Credentials, DevEui, Mode, Region, DR};
 use crate::{Downlink, Error as LoraE5Error, JoinResponse, LoraE5};
 use std::sync::{Arc, Mutex};
 use tokio::{
@@ -14,6 +14,8 @@ pub enum Request {
     At(String, Duration, oneshot::Sender<Result<String>>),
     Join(bool, oneshot::Sender<Result<JoinResponse>>),
     Configure(Credentials, oneshot::Sender<Result>),
+    GetAppEui(oneshot::Sender<Result<AppEui>>),
+    GetDevEui(oneshot::Sender<Result<DevEui>>),
     DataRate(DR, oneshot::Sender<Result>),
     Shutdown,
     SendData(Vec<u8>, u8, bool, oneshot::Sender<Result<Option<Downlink>>>),
@@ -50,6 +52,18 @@ impl Client {
         self.sender
             .send(Request::Configure(credentials, tx))
             .await?;
+        rx.await?
+    }
+
+    pub async fn get_app_eui(&self) -> Result<AppEui> {
+        let (tx, rx) = oneshot::channel();
+        self.sender.send(Request::GetAppEui(tx)).await?;
+        rx.await?
+    }
+
+    pub async fn get_dev_eui(&self) -> Result<DevEui> {
+        let (tx, rx) = oneshot::channel();
+        self.sender.send(Request::GetDevEui(tx)).await?;
         rx.await?
     }
 
@@ -141,6 +155,22 @@ impl Runtime {
                         lora_e5.set_credentials(&credentials)?;
                         lora_e5.subband2_only()?;
                         Ok(())
+                    })
+                    .await?;
+                    respond(response_sender, result)?;
+                }
+                Request::GetAppEui(response_sender) => {
+                    let result = task::spawn_blocking(move || {
+                        let mut lora_e5 = lora_e5.lock().unwrap();
+                        Ok(lora_e5.get_app_eui()?)
+                    })
+                    .await?;
+                    respond(response_sender, result)?;
+                }
+                Request::GetDevEui(response_sender) => {
+                    let result = task::spawn_blocking(move || {
+                        let mut lora_e5 = lora_e5.lock().unwrap();
+                        Ok(lora_e5.get_dev_eui()?)
                     })
                     .await?;
                     respond(response_sender, result)?;

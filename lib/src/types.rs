@@ -14,6 +14,7 @@ impl Mode {
     }
 }
 
+#[derive(Debug, Clone, Copy)]
 pub enum Region {
     Eu868,
     Us915,

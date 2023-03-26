@@ -17,6 +17,7 @@ pub enum Request {
     GetAppEui(oneshot::Sender<Result<AppEui>>),
     GetDevEui(oneshot::Sender<Result<DevEui>>),
     DataRate(DR, oneshot::Sender<Result>),
+    Region(Region, oneshot::Sender<Result>),
     Shutdown,
     SendData(Vec<u8>, u8, bool, oneshot::Sender<Result<Option<Downlink>>>),
     SendAscii(String, u8, bool, oneshot::Sender<Result<Option<Downlink>>>),
@@ -38,6 +39,12 @@ impl Client {
     pub async fn join(&self, force: bool) -> Result<JoinResponse> {
         let (tx, rx) = oneshot::channel();
         self.sender.send(Request::Join(force, tx)).await?;
+        rx.await?
+    }
+
+    pub async fn region(&self, region: Region) -> Result {
+        let (tx, rx) = oneshot::channel();
+        self.sender.send(Request::Region(region, tx)).await?;
         rx.await?
     }
 
@@ -191,6 +198,14 @@ impl Runtime {
                     let result = task::spawn_blocking(move || {
                         let mut lora_e5 = lora_e5.lock().unwrap();
                         lora_e5.set_datarate(dr)
+                    })
+                    .await?;
+                    respond(sender, result.map_err(|e| e.into()))?;
+                }
+                Request::Region(region, sender) => {
+                    let result = task::spawn_blocking(move || {
+                        let mut lora_e5 = lora_e5.lock().unwrap();
+                        lora_e5.set_region(region)
                     })
                     .await?;
                     respond(sender, result.map_err(|e| e.into()))?;

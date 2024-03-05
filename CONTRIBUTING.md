@@ -1,4 +1,4 @@
-# How to Contribute to this repository #
+# How to Contribute to this Repository
 
 We value contributions from the community and will do everything we
 can go get them reviewed in a timely fashion. If you have code to send
@@ -17,6 +17,6 @@ our way or a bug to report:
 This project is intended to be a safe, welcoming space for
 collaboration, and contributors are expected to adhere to the
 [Contributor Covenant Code of
-Conduct](http://contributor-covenant.org/).
+Conduct](https://contributor-covenant.org/).
 
 Above all, thank you for taking the time to be a part of the Helium community.

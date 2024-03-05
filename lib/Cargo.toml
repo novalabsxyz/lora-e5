@@ -1,12 +1,12 @@
 [package]
 name = "lora-e5"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 authors = ["Louis Thiery <thiery.louis@gmail.com>"]
 description = "Tokio-based runtime and library for the SEEED LoRa-E5 module"
 license = "Apache-2.0"
 repository = "https://github.com/novalabsxyz/lora-e5"
-readme = "README.md"
+readme = "../README.md"
 keywords = ["lora-e5", "lorawan", "seeed"]
 
 [dependencies]
